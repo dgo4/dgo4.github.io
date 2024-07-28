@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Investing in High Tech Stocks</title>
+
+    <link rel="icon" href="data:,">
+
+    <meta charset="utf-8">
+
+    <style>
+        svg {
+            border: solid 1px black;
+        }
+       .button {
+            background-color: lightgrey;
+        }
+    </style>
+
+    <script src="https://d3js.org/d3.v4.js"></script>
+
+    <script>
+    var colorArray = [
+            "Black",    //0
+            "Red",      //1
+            "Orange",   //2
+            "Yellow",   //3
+            "Green",    //4
+            "Gold",     //5
+            "Blue",     //6
+            "Purple",   //7
+            "Crimson",  //8
+            "Salmon",   //9
+            "Lime",     //10
+            "Brown",     //11
+            "Orchid",   //12
+            "Navy",     //13
+            "Teal",     //14
+            "Cyan",     //15
+            "Pink"      //16
+    ];
+
+    var nameArray = [
+
+    ];
+
+    var enableArray = [
+            1,  //AAPL
+            1,  //ADBE
+            1,  //AMZN
+            1,  //CRM
+            1,  //CSCO
+            1,  //GOOGL
+            1,  //IBM
+            1,  //INTC
+            1,  //META
+            1,  //MSFT
+            1,  //NFLX
+            1,  //NVDA
+            1,  //ORCL
+            1  //TSLA
+    ];
+
+    var StartYear = 2013;
+    var LastYear = 2022;
+    var NumYear = (LastYear - StartYear) + 1;
+
+    var LastMonth = 12;
+    var NumMonth = 12;
+    var NumStock = 14;
+
+    var PreProcessRowMonth = 0;
+    var PreProcessRowStart = 1;
+    var openGmax = 0;
+    var openGmin = 0;
+    var roiGmax = 0;
+    var roiGmin = 0;
+    var avgGmax = 0;
+    var avgGmin = 0;
+    var openmin = 0;
+    var openmax = 0;
+    var group = 1
+    var index = 1;
+
+    var groupedData;
+    var x_min;
+    var x_max;
+    var x_range;
+
+    var x_extent;
+    var x_scale;
+    var x_axis;
+
+    var d_extent;
+    var d_scale;
+    var d_axis;
+
+    var y_min;
+    var y_max;
+    var y_range;
+
+    var y_extent;
+    var y_scale;
+    var y_axis;
+
+    var margin = 60;
+    var width  =800;
+    var height =680;
+
+    var titleheight  = 30
+    var legendwidth  = 60;
+    var legendheight = 20;
+    var legendspace  = 5;
+
+    const charts = [
+        {key:"open", title: "Historical Price",     y_axis: "Price",      desc: "\
+        For the period of 2013 to 2022, we see that Magnificent 7 stocks have great ride from 2013 \
+        and hit their highest price around early 2022 but start to decline from 2022.\
+        "},
+        {key:"roi",  title: "Historical Return",    y_axis: "Percentage", desc: "\
+        To successfully use the buy and hold strategy, one need to get into the market at the right timing.\
+        Even for Magnificent 7 stocks, if one buy these stocks at the time when it starts to decline,\
+        he or she will have negative return that will take time to recover.\
+        Between 2020 to 2022 when the stock price fluctuate substantially and subsequently decline in 2022,\
+        buying a single stock and hold is definitely risky.\
+        "},
+        {key:"avg",  title: "Dollar Averaging",     y_axis: "Multiple",   desc: "\
+        Without knowing when the market is declining, it is advised that we buy periodically and\
+        allow us to buy the stock with a range of price that hopefully we get an overall positive return.\
+        This strategy is known as Dollar Averaging.\
+        Positive return in this case means the Ratio of Final Asset vs Final Cost should be greater than 1.\
+        "},
+        {key:"up",   title: "Up Trend Averaging",   y_axis: "Multiple",   desc: "\
+        A more sophisticated strategy while doing Dollar Averaging is to buy when the stock price is rising.\
+        This is the Bull style where the investor believes that an Up Trend indicates the stock is in favor.\
+        "},
+        {key:"dn",   title: "Down Trend Averaging", y_axis: "Multiple",   desc: "\
+        A more sophisticated strategy while doing Dollar Averaging is to buy when the stock price is falling.\
+        This is the Bear style where the investor believes that an Down Trend indicates the stock is cheap.\
+        "},
+        {key:"best", title: "Best Strategy for Averaging", y_axis: "Choices",   desc: "\
+        We show which strategy is the best for a given stock.\
+        0 means General Dollar Average is best. +1 means Up Trend is best. -1 means Down Trend is best.\
+        In general Down Trend Averaging is the best strategy for majority of the stocks.\
+        In very rare case where the stock price is declining that Up Trend Averaging allows investor\
+        to avoid buying a falling knife.\
+        "},
+    ]
+
+    const chart = {
+        current: charts[0]
+    }
+
+    function PreProcessRow(d) {
+        d.open = parseFloat(d.open);
+        d.dates = d.date.split('-');
+        d.year = parseInt(d.dates[0]);
+        d.month = parseInt(d.dates[1]);
+        d.day = parseInt(d.dates[2]);
+
+        if(d.year <= LastYear) {
+        if(d.year >= StartYear) {
+        if(PreProcessRowMonth != d.month) {
+            //keep first day of the month's data
+            PreProcessRowMonth = d.month;
+
+            //generate min/max for particular stock
+            if(PreProcessRowStart == 1) {
+                PreProcessRowStart = 0;
+                openmin = d.open;
+                openmax = d.open;
+                index = 1;
+            } else {
+                if(d.open > openmax) {
+                    openmax = d.open;
+                }
+                if(d.open < openmin) {
+                    openmin = d.open;
+                }
+                index = index + 1;
+            }
+            d.openmin = openmin;
+            d.openmax = openmax;
+            d.index = index;
+            d.group = group;
+            
+            //capture min/max once we are in 2022/12
+            if(d.year == LastYear) {
+                if (d.month == LastMonth) {
+                    PreProcessRowStart = 1;
+                    index = 1;
+                    nameArray[group] = d.stock_symbol;
+                    group = group + 1;
+                }
+            }
+            return d;
+        }
+        }
+        }
+    }
+
+    //Monthly ROI
+    //  (1 + ROI per Duration) ** Duration = Ratio of End Price / Start Price
+    //  Yearly ROI = Monthly ROI * 12 * 100 in percentage
+    //
+    function CalculateROI (groupedData) {
+        var LastOpen = 0;
+        var LastIndex = 0;
+        var open = 0;
+        var roi  = 0;
+        var ratio = 0;
+        var delta = 0;
+        var First = 1;
+        for (group in groupedData) {
+            LastIndex= LastMonth * NumYear;
+            LastOpen = groupedData[group].values[LastIndex-1].open;
+            //console.log("Last: " + LastIndex + " : " + LastOpen);
+            for (i=0; i < LastIndex; i++ ) {
+                open  = groupedData[group].values[i].open;
+                ratio  = (LastOpen / open);
+                delta = (LastIndex - i);
+                roi = ((delta == 0) ? 0 : (Math.pow(ratio, 1/delta) - 1)) * 100;
+                //console.log("Current: " + i + " : " + open + " : " + ratio + " : " + delta + " : " + roi)
+                groupedData[group].values[i].ratio = ratio;
+                groupedData[group].values[i].roi = roi;
+                //console.log(roiGmax + " " + roiGmin + " " + roi);
+                if (First == 1) {
+                    roiGmax = roi;
+                    roiGmin = roi;
+                    First = 0;
+                } else {
+                    roiGmax = ((roi > roiGmax)? roi : roiGmax);
+                    roiGmin = ((roi < roiGmin)? roi : roiGmin);
+                }
+            }
+        }
+        return groupedData;
+    }
+
+    //DollarAvg ROI
+    //  Assuming 1K purchase of Stock per Month and hold to End of the Duration
+    //  Total number of Share Purchased = (1K/Price Start + ... 1K/Price End)
+    //  Total Asset = Total number of Share Purchased * Price End
+    //  Total Cost = 1K * Duration
+    //  DollarAvg ROI = (Total Assset / Total Cost)
+    //  DollarAvg ROI = (Price End / Price Start + ... 1) / Duration
+    //
+    function CalculateAvg(groupedData) {
+        var ratio = 0;
+        var sum   = 0;
+        var count = 0;
+        var avg   = 0;
+        var First = 1;
+        var LastIndex= LastMonth * NumYear;
+        for(group in groupedData) {       
+            for (i=0; i < LastIndex; i++ ) {
+                sum = 0;
+                count = 0;
+                for (j=0; j < LastIndex; j++ ) {
+                    ratio  = groupedData[group].values[j].ratio;
+                    //if(group == 0) {
+                    //    console.log("group: " + group + " i: " + i + " j: " + j + " ratio: " + ratio);
+                    //}
+                    if(j >= i) {
+                        sum = sum + ratio;
+                        count = count + 1;
+                    }
+                }
+                avg = (sum/count) - 1;
+                //if(sum < count) {console.log("sum: " + sum + " count: " + count);}
+                groupedData[group].values[i].avg = avg;
+                if(First == 1) {
+                    avgGmax = avg;
+                    avgGmin = avg;
+                    First = 0;
+                } else {
+                    avgGmax = ((avg > avgGmax)? avg : avgGmax);
+                    avgGmin = ((avg < avgGmin)? avg : avgGmin);
+                }
+            }
+        }
+        return groupedData;
+    }
+
+    //Simple Up-Trend Strategy
+    //  Assuming 1K purchase of Stock per Month and hold to End of the Duration
+    //  accumulated 1K = 0
+    //  Check if Price in Current Duration is higher than Last Duration
+    //      if True,  buy the Stock with accumulated 1K
+    //      if False, 1K is added to accumulated 1K 
+    //  Total Asset = Total number of Share Purchased * Price End + accumulated 1K
+    //  Total Cost = 1K * Duration
+    //  DollarUp ROI = (Total Assset / Total Cost)
+    //  DollarUp ROI = {Sum of Ratio in Duration when True + accumulated 1K/1K} / Duration
+    function CalculateUp(groupedData) {
+        var LastRatio = 0;
+        var ratio = 0;
+        var sum   = 0;
+        var acc   = 0;
+        var count = 0;
+        var up   = 0;
+        var First = 1;
+        var LastIndex= LastMonth * NumYear;
+        for(group in groupedData) {       
+            for (i=0; i < LastIndex; i++ ) {
+                LastRatio = groupedData[group].values[i].ratio;
+                sum = 0;
+                acc = 0;
+                count = 0;
+                for (j=0; j < LastIndex; j++ ) {
+                    ratio  = groupedData[group].values[j].ratio;
+                    if(j >= i) {
+                        if(ratio <= LastRatio) {
+                            sum = (sum + ratio * (acc + 1));
+                            acc = 0;
+                        } else {
+                            acc = acc + 1;
+                        }
+                        if (group == 0) {
+                            //console.log("group: " + group + " LastRatio: " + LastRatio + " ratio: " + ratio + " acc: " + acc + " sum: " + sum);
+                        }
+                        LastRatio = ratio;
+                        count = count + 1;
+                    }
+                    sum = sum + acc;
+                }
+                up = (sum/count) - 1;
+                if (group == 0) {
+                    //console.log("i: " + i + " sum: " + sum + " count: " + count);
+                }
+                groupedData[group].values[i].up = up;
+                if(First == 1) {
+                    upGmax = up;
+                    upGmin = up;
+                    First = 0;
+                } else {
+                    upGmax = ((up > upGmax)? up : upGmax);
+                    upGmin = ((up < upGmin)? up : upGmin);
+                }
+            }
+        }
+        return groupedData;
+    }
+
+    //Simple Down-Trend Strategy
+    //  Assuming 1K purchase of Stock per Month and hold to End of the Duration
+    //  accumulated 1K = 0
+    //  Check if Price in Current Duration is lower than Last Duration
+    //      if True,  buy the Stock with accumulated 1K
+    //      if False, 1K is added to accumulated 1K 
+    //  Total Asset = Total number of Share Purchased * Price End + accumulated 1K
+    //  Total Cost = 1K * Duration
+    //  DollarUp ROI = (Total Assset / Total Cost)
+    //  DollarUp ROI = {Sum of Ratio in Duration when True + accumulated 1K/1K} / Duration
+    function CalculateDn(groupedData) {
+        var LastRatio = 0;
+        var ratio = 0;
+        var sum   = 0;
+        var acc   = 0;
+        var count = 0;
+        var dn    = 0;
+        var First = 1;
+        var LastIndex= LastMonth * NumYear;
+        for(group in groupedData) {       
+            for (i=0; i < LastIndex; i++ ) {
+                LastRatio = groupedData[group].values[i].ratio;
+                sum = 0;
+                acc = 0;
+                count = 0;
+                for (j=0; j < LastIndex; j++ ) {
+                    ratio  = groupedData[group].values[j].ratio;
+                    if(j >= i) {
+                        if(ratio >= LastRatio) {
+                            sum = (sum + ratio * (acc + 1));
+                            acc = 0;
+                        } else {
+                            acc = acc + 1;
+                        }
+                        LastRatio = ratio;
+                        count = count + 1;
+                    }
+                    sum = sum + acc;
+                }
+                dn = (sum/count) - 1;
+                groupedData[group].values[i].dn = dn;
+                if(First == 1) {
+                    dnGmax = dn;
+                    dnGmin = dn;
+                    First = 0;
+                } else {
+                    dnGmax = ((dn > dnGmax)? dn : dnGmax);
+                    dnGmin = ((dn < dnGmin)? dn : dnGmin);
+                }
+            }
+        }
+        return groupedData;
+    }
+
+    //Find Best Strategy for Each Stock
+    //
+    function CalculateBest(groupedData) {
+        var LastIndex= LastMonth * NumYear;
+        var best;
+        var val;
+        var avg;
+        var up;
+        var dn;
+        for(group in groupedData) {       
+            for (i=0; i < LastIndex; i++ ) {
+                best = -1;
+                avg = groupedData[group].values[i].avg;
+                up = groupedData[group].values[i].up;
+                dn = groupedData[group].values[i].dn;
+                val = dn;
+                if(group == 0) {
+                    //console.log(up + ":" + avg + ":" + dn);
+                }
+                if(up > val) {
+                    best = 1;
+                } 
+                if(avg > val) {
+                    best = 0;
+                }
+                groupedData[group].values[i].best = best;
+            }
+        }
+        return groupedData;
+    }
+
+    function DrawCurves(group) {
+        //console.log("DrawCurves: " + group);
+        //console.log(chart.current.key);
+        //console.log(groupedData[group].values)
+
+        //Check Enabled
+        if(enableArray[group] == 0){
+            return;
+        }
+
+        var g = d3.select("body")
+                .select("svg")
+                    .append("g")
+                    .selectAll("circle.curves")
+                    .data(groupedData[group].values)
+                    .enter();
+
+                g.append("circle")
+                        .on("mouseover", function(event, d) {
+                            console.log(this);
+                            const [mx, my] = d3.mouse(this);
+                            c = d3.select(this).attr("class");
+                            names = c.split('.');
+                            name = names[1];
+                            x = x_scale.invert(
+                                        d3.select(this).attr("cx"));
+                            year  = parseInt(x / 12 + 2013);
+                            month = parseInt(x % 12 + 1);
+                            y = y_scale.invert(
+                                        d3.select(this).attr("cy"));
+                            d3.select(this)
+                                .attr("r", 8);
+                            d3.select("body")
+                                .select("#stockdesc")
+                                .text(
+                                    nameArray[name] +
+                                    " year: " + year +
+                                    " month: " + month +
+                                    " y: " + y
+                                );
+                        })
+                        .on("mouseout", function(event, d) {
+                            d3.select(this)
+                                .attr("r", 2);
+                        })
+                        .attr("class", "points." + group)
+                        .attr("cx", d => x_scale(d.index))
+                        .attr("cy", d => y_scale(d[chart.current.key]))
+                        .attr("fill", d => colorArray[d.group])
+                        .attr("r", 2);
+
+        //        g.append("text")
+        //                .attr("dx", d => x_scale(d.index))
+        //                .attr("dy", d => y_scale(d[chart.current.key]))
+        //                .text(function(d) {return d.group});
+
+        var lineMaker;
+        
+        lineMaker = d3.line()
+                    .x(d => x_scale(d.index))
+                    .y(d => y_scale(d[chart.current.key]));
+
+        d3.select("body")
+            .select("svg")
+                .append("path")
+                    .attr("fill", "none")
+                    .attr("class", "curves")
+                    .attr("stroke-width", "2")
+                    .attr("stroke", colorArray[group+1])
+                    .attr("d", lineMaker(groupedData[group].values));
+    }
+
+    function DrawCanvas() {
+        // badass visualization code goes here
+        var group;
+
+        y_min = margin;
+        y_max = height - margin;
+        y_range = [y_max, y_min];
+
+        switch(chart.current.key) {
+            case "open": y_extent = [openGmin, openGmax]; break;
+            case "roi":  y_extent = [roiGmin, roiGmax]; break;
+            case "avg":  y_extent = [avgGmin, avgGmax]; break;
+            case "up":   y_extent = [upGmin, upGmax]; break;
+            case "dn":   y_extent = [dnGmin, dnGmax]; break;
+            case "best": y_extent = [-1, +1]; break;
+        }
+
+        //console.log(y_extent);
+
+        y_scale  = d3.scaleLinear().domain(y_extent).range(y_range);
+        y_axis = d3.axisLeft(y_scale);
+
+        //canvas
+        d3.select("body")
+            .select("svg")
+                .attr("width", width + legendwidth)
+                .attr("height", height);
+
+        //axis and label
+        d3.select("body")
+            .select("svg")        
+                .append("g")
+                    .attr("class", "y-axis")
+                    .attr("transform", "translate(" +(x_min)+ ", 0)")
+                    .call(y_axis);
+
+        d3.select("body")
+            .select("svg")        
+                .append("g")
+                    .attr("class", "x-axis")
+                    .attr("transform", "translate(0, " +(y_max)+ ")")
+                    .call(d_axis);
+
+        d3.select("body")
+            .select("svg")
+                .append("text")
+                    .text("Time")
+                        .attr("x", x_max + margin/4)
+                        .attr("y", y_max);
+
+        //console.log(chart.current.key);
+        //console.log("Text: " + chart.current.y_axis);
+
+        d3.select("body")
+            .select("svg")
+                .append("text")
+                    .text(chart.current.y_axis)
+                    .attr("x", margin/2)
+                    .attr("y", margin/2);
+
+        //data curves
+        for(group = 0; group < NumStock; group++) {
+            DrawCurves(group);
+        }       
+
+        //legend points
+        d3.select("body")
+            .select("svg")
+                .append("g")
+                    .selectAll("circle.legend")
+                    .data(groupedData)
+                    .enter()
+                    .append("circle")
+                        .attr("cx", function(d,i) {return (x_max   + margin/4);})
+                        .attr("cy", function(d,i) {return (y_max/2 + i*legendheight);})
+                        .attr("fill", function(d, i) {return colorArray[i+1]})
+                        .attr("r", 2);           
+                        
+        //legend text
+        d3.select("body")
+            .select("svg")
+                .append("g")
+                    .selectAll("text.legend")
+                    .data(groupedData)
+                    .enter()
+                    .append("text")
+                        .attr("id", function(d,i) {return "text.legend." + i;})
+                        .attr("dx", function(d,i) {return (x_max   + margin/4 + legendspace);})
+                        .attr("dy", function(d,i) {return (y_max/2 + i*legendheight);})
+                        .attr("fill", function(d, i) {return colorArray[i+1]})
+                        .text(function(d, i) {return nameArray[i+1]});         
+
+        d3.select("body")
+            .selectAll("button")
+            .on("click", function() {
+                console.log(this.id);
+                chart.current = charts.filter(c => c.key == this.id)[0];
+                console.log("Button:" + chart.current);
+                DrawChart();
+            });
+
+        /*
+        for (group in groupedData) {
+            d3.select("body")
+                .append("div")
+                .append("ul")
+                .selectAll("li")
+                .data(groupedData[group].values)
+                .enter()
+                .append("li")
+                .text(function (d) {
+                    return d.stock_symbol + ": " + ": " + d.index + ": " +
+                            d.date + ":"  +
+                            d.open + ": " + d.ratio + ": " +
+                            d[chart.current.key] + ": " + d.best + ": " +
+                            "<" + d.up + ":" + d.avg + ":" + d.dn + ">"
+                });
+        }
+        */
+    }
+
+    function ClearCanvas() {
+        d3.select("body")
+            .select("svg")
+                .selectAll("*").remove();
+    }
+
+    function DrawChart() {
+        console.log(chart.current.key);
+        d3.select("body")
+            .selectAll("button").property("disabled", false);
+        d3.select("body")
+            .select("#" + chart.current.key).property("disabled", true);
+        d3.select("body")
+            .select("#charttitle").text(chart.current.title);
+        d3.select("body")
+            .select("#chartdesc").text(chart.current.desc);
+        ClearCanvas();
+        DrawCanvas();
+    }
+
+    function clickStock(checkbox) {
+        var names;
+        var num;
+
+        console.log(checkbox.id);
+        names = checkbox.id.split('.');
+        num = parseInt(names[1]);
+
+        if(checkbox.checked) {
+            enableArray[num] = 1;
+        } else {
+            enableArray[num] = 0;
+        }
+
+        console.log(enableArray);
+
+        d3.select("body")
+                .select("svg")
+                .selectAll(".points").remove();
+        d3.select("body")
+                .select("svg")
+                .selectAll(".curves").remove();
+        for(i = 0; i < NumStock; i++) {
+            DrawCurves(i);
+        }
+    }
+
+    function MainProcess(data) {
+
+        console.log(nameArray);
+
+        x_min = margin;
+        x_max = width - margin;
+        x_range = [x_min, x_max];
+
+        x_extent = d3.extent(data, function(d) {return d.index;})
+        x_scale  = d3.scaleLinear().domain(x_extent).range(x_range);
+        x_axis = d3.axisBottom(x_scale);
+
+        d_extent = [new Date(StartYear,1,1), new Date(LastYear,LastMonth,1)];
+        d_scale = d3.scaleTime().domain(d_extent).range(x_range);
+        d_axis = d3.axisBottom(d_scale);
+
+        [openGmin, openGmax] = d3.extent(data, function(d) {return d.open;});
+
+        //group data per stock
+        groupedData = d3.nest()
+                            .key(d => d.group)
+                            .entries(data);
+
+        //calculate ROI based on buy and hold
+        groupedData = CalculateROI(groupedData);
+
+        //console.log(groupedData);
+
+        //calculate ROI based on dollar averaging
+        groupedData = CalculateAvg(groupedData);
+
+        //console.log(groupedData);
+
+        groupedData = CalculateUp(groupedData);
+
+        //console.log(groupedData);
+
+        groupedData = CalculateDn(groupedData);
+
+        //console.log(groupedData);
+
+        groupedData = CalculateBest(groupedData);
+
+        console.log(groupedData);
+
+        DrawCanvas(data);
+    }
+    
+    function loadCsv(csvFile) {
+        const data = d3.csv(csvFile, PreProcessRow, MainProcess);
+    }
+
+    </script>
+</head>
+<body>
+    <script>
+        //const data = [{stock_symbol: "AAPL"}, {stock_symbol: "MSFT"}];
+        loadCsv('./data/big_tech_stock_prices.csv');
+    </script>
+    <h1>Investing in High Tech Stocks</h1>
+    <p>In this Visualization Project, we are going to explore how to invest in High Tech Stocks.</p>
+    <p>We have historical price from 2013 to 2022 of 14 stocks:</p>
+    <p>Magnificent Seven - AAPL, AMZN, GOOGL, META, MSFT, NVDA, TSLA</p>
+    <p>Other Stocks - ADBE, CRM, CSCO, IBM, INTC, NFLX, ORCL</p>
+    <p>We will look at historical return assuming buy and hold</p>
+    <p>We will look at return based on dollar averaging.<p>
+    <p>We will explore simple strategies of buying the stocks based on rising or falling trend.</p>
+    <p>We will plot the best strategies for each stock</p>
+    <form>
+        <legend>Scenes</legend>
+        <button class="button" type="button" id="open">Historical Price</button>
+        <button class="button" type="button" id="roi">Historical Return</button>
+        <button class="button" type="button" id="avg">Dollar Averaging</button>
+        <button class="button" type="button" id="up">Up Trend Averaging</button>
+        <button class="button" type="button" id="dn">Down Trend Averaging</button>
+        <button class="button" type="button" id="best">Best Strategy for Averaging</button>
+    </form>
+    <p></p>
+    <form>
+        <legend>Stocks of Interest</legend>
+        <input type="checkbox" id="stock.0" name="stock" checked onclick="clickStock(this);">
+        <label for="AAPL">AAPL</label>
+        <input type="checkbox" id="stock.1" name="stock" checked onclick="clickStock(this);">
+        <label for="ADBE">ADBE</label>
+        <input type="checkbox" id="stock.2" name="stock" checked onclick="clickStock(this);">
+        <label for="AMZN">AMZN</label>
+        <input type="checkbox" id="stock.3" name="stock" checked onclick="clickStock(this);">
+        <label for="CRM">CRM</label>
+        <input type="checkbox" id="stock.4" name="stock" checked onclick="clickStock(this);">
+        <label for="CSCO">CSCO</label>
+        <input type="checkbox" id="stock.5" name="stock" checked onclick="clickStock(this);">
+        <label for="GOOGL">GOOGL</label>
+        <input type="checkbox" id="stock.6" name="stock" checked onclick="clickStock(this);">
+        <label for="IBM">IBM</label>
+        <input type="checkbox" id="stock.7" name="stock" checked onclick="clickStock(this);">
+        <label for="INTC">INTC</label>
+        <input type="checkbox" id="stock.8" name="stock" checked onclick="clickStock(this);">
+        <label for="META">META</label>
+        <input type="checkbox" id="stock.9" name="stock" checked onclick="clickStock(this);">
+        <label for="MSFT">MSFT</label>
+        <input type="checkbox" id="stock.10" name="stock" checked onclick="clickStock(this);">
+        <label for="NFLX">NFLX</label>
+        <input type="checkbox" id="stock.11" name="stock" checked onclick="clickStock(this);">
+        <label for="NVDA">NVDA</label>
+        <input type="checkbox" id="stock.12" name="stock" checked onclick="clickStock(this);">
+        <label for="ORCL">ORCL</label>
+        <input type="checkbox" id="stock.13" name="stock" checked onclick="clickStock(this);">
+        <label for="TSLA">TSLA</label>
+    </form>
+
+    <p>Annotation Data: <span id="stockdesc"></span></p>
+    <h2><span id="charttitle">Historical Price</span> of High Tech Stocks from 2013 to 2022</h2>
+    <p><spen id="chartdesc">For the period of 2013 to 2022, we see that Magnificent 7 stocks have great ride from 2013 
+        and hit their highest price around early 2022 but start to decline from 2022.</span></p>
+    <svg style="background: lightgrey">
+    </svg>
+</body>
+</html>
